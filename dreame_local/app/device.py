@@ -228,7 +228,13 @@ class Device:
             fut = self._pending.pop(rid)
             if not fut.done():
                 fut.set_result(msg.get("data", {}).get("result"))
-            events.add("command_result", id=rid)
+            res = msg.get("data", {}).get("result")
+            if isinstance(res, dict):
+                # Action-Antworten (code/out) mitschreiben, damit Fehler
+                # des Roboters im Eventlog sichtbar sind.
+                events.add("command_result", id=rid, result=json.dumps(res)[:500])
+            else:
+                events.add("command_result", id=rid)
         data = msg.get("data", {})
         result = data.get("result")
         # get_properties liefert [{siid,piid,value,code}] -> direkt in den Zustand
@@ -348,7 +354,10 @@ class Device:
         fut = asyncio.get_running_loop().create_future()
         self._pending[rid] = fut
         log.info("-> %s", method)
-        events.add("command", method=method)
+        if method == "action" and isinstance(params, dict):
+            events.add("command", method=method, id=rid, params=json.dumps(params)[:500])
+        else:
+            events.add("command", method=method, id=rid)
         if not await self._publish(self.ctrl_topic, json.dumps(body)):
             self._pending.pop(rid, None)
             raise RuntimeError("Roboter nicht verbunden")

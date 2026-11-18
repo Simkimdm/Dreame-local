@@ -472,6 +472,8 @@ class DreameApi:
             result = await self.dev.send(str(method), params, timeout=15)
             if method == "get_properties":
                 result = self._complete_properties(result, params)
+            elif method == "action":
+                log.info("sendCommand action <- %s", json.dumps(result)[:300])
             # REQUEST_MAP (siid 6, aiid 1): Die echte Cloud liefert hier den
             # vollstaendigen I-Frame im out-Array (piid 1) zurueck. Der
             # Roboter antwortet im Docked-Zustand leer; wir ergaenzen die
