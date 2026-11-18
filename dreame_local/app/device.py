@@ -393,6 +393,44 @@ class Device:
             "set_properties", [{"did": self.did, "siid": p["siid"], "piid": p["piid"], "value": value}]
         )
 
+    def saved_map_id(self) -> int | None:
+        """ID der gespeicherten Karte aus der hochgeladenen Map-Liste (curr_id)."""
+        root = self.data_dir / "uploads" / f"ali_dreame/{self.uid}/{self.did}"
+        try:
+            data = json.loads((root / "9").read_text())
+            if isinstance(data, dict) and data.get("curr_id"):
+                return int(data["curr_id"])
+        except Exception:
+            pass
+        try:
+            data = json.loads((root / "8").read_text())
+            if isinstance(data, list) and data and data[0].get("id"):
+                return int(data[0]["id"])
+        except Exception:
+            pass
+        return None
+
+    async def ensure_saved_map(self) -> None:
+        """Vor Raum-/Zonenreinigung die gespeicherte Karte aktiv setzen.
+
+        Der Roboter verliert gelegentlich die Kartenauswahl und startet dann
+        jede Reinigung auf einer neuen, leeren Karte (Live-Frame: curid != 24,
+        cleanset nur mit Raum 1/2). Raum- und Zonenreinigung enden dann nach
+        ~15 s mit Fehler "route". Die Auswahl (siid 6/aiid 2, {"sm":{},
+        "mapid":id}) ist idempotent und wird deshalb immer vorher gesendet.
+        """
+        map_id = self.saved_map_id()
+        if not map_id:
+            return
+        value = json.dumps({"sm": {}, "mapid": map_id}, separators=(",", ":"))
+        try:
+            result = await self.raw_action(6, 2, [{"piid": 4, "value": value}])
+            log.info("Karte %s vor Reinigung ausgewaehlt: %s", map_id, result)
+            events.add("map_select", map_id=map_id, result=json.dumps(result)[:200])
+            await asyncio.sleep(1.5)
+        except Exception as exc:
+            log.warning("Kartenauswahl %s fehlgeschlagen: %s", map_id, exc)
+
     async def raw_action(self, siid: int, aiid: int, in_params: list[dict] | None = None) -> Any:
         params = {"did": self.did, "siid": siid, "aiid": aiid, "in": in_params or []}
         return await self.send("action", params)

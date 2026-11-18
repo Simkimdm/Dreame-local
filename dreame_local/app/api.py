@@ -34,6 +34,18 @@ def _ok(data: Any = None) -> web.Response:
     return web.json_response(body)
 
 
+def _is_targeted_clean(method: Any, params: Any) -> bool:
+    """START_CUSTOM (siid 4/aiid 1) mit Raum- (18) oder Zonenreinigung (19)."""
+    if method != "action" or not isinstance(params, dict):
+        return False
+    if str(params.get("siid")) != "4" or str(params.get("aiid")) != "1":
+        return False
+    for item in params.get("in") or []:
+        if isinstance(item, dict) and item.get("piid") == 1:
+            return str(item.get("value")) in ("18", "19")
+    return False
+
+
 @web.middleware
 async def api_log_middleware(request: web.Request, handler):
     """Schreibt jeden API-Aufruf nach /data/api.log (Diagnose)."""
@@ -469,6 +481,8 @@ class DreameApi:
                 and str(params.get("aiid")) == "1"
             ):
                 self.dev.clear_map_path()
+            if _is_targeted_clean(method, params):
+                await self.dev.ensure_saved_map()
             result = await self.dev.send(str(method), params, timeout=15)
             if method == "get_properties":
                 result = self._complete_properties(result, params)

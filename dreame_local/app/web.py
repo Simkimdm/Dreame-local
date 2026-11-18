@@ -855,6 +855,7 @@ class Web:
                     ],
                 }
                 log.info("Raumreinigung %s", payload)
+                await self.dev.ensure_saved_map()
                 result = await self.dev.send("action", params, timeout=20)
                 events.add("room_clean", ids=ids, result=result)
                 if isinstance(result, dict) and result.get("code") not in (0, None):
@@ -880,6 +881,7 @@ class Web:
                     ],
                 }
                 log.info("Zonenreinigung %s", payload)
+                await self.dev.ensure_saved_map()
                 result = await self.dev.send("action", params, timeout=20)
                 events.add("zone_clean", areas=areas, result=result)
                 if isinstance(result, dict) and result.get("code") not in (0, None):
