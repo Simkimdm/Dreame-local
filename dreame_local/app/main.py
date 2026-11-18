@@ -27,7 +27,7 @@ from web import Web
 
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("OPTIONS_FILE", "/data/options.json"))
-VERSION = "0.9.0"
+VERSION = "0.9.1"
 
 
 def load_options() -> dict:
@@ -222,7 +222,7 @@ async def amain() -> int:
     broker_port = int(opts.get("broker_port") or 19973)
     web_port = int(opts.get("web_port") or 8099)
     upload_port = int(opts.get("upload_port") or 8443)
-    upload_http_port = int(opts.get("upload_http_port") or 8081)
+    upload_http_port = int(opts.get("upload_http_port") or 19980)
     upload_scheme = str(opts.get("upload_scheme") or "http").strip().lower()
     api_port = int(opts.get("api_port") or 13267)
     lan_ip = str(opts.get("lan_ip") or "")
