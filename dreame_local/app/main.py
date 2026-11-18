@@ -27,7 +27,7 @@ from web import Web
 
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("OPTIONS_FILE", "/data/options.json"))
-VERSION = "0.8.0"
+VERSION = "0.8.1"
 
 
 def load_options() -> dict:
@@ -131,6 +131,23 @@ async def upload_server(
     app.add_routes([web.route("*", path, upload) for path in routes])
     ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     ctx.load_cert_chain(cert, key)
+
+    # Diagnose: Kommt der Roboter ueberhaupt per TLS an (sonst Firewall) und
+    # bricht er den Handshake ab (z. B. Alert 48 unknown_ca / 42 bad_cert)?
+    def _tls_hello(_sslobj, server_name, _ctx) -> None:
+        ulog.info("TLS-Handshake eingehend (SNI=%s)", server_name)
+        events.add("upload_tls", sni=server_name or "")
+
+    def _tls_msg(_conn, direction, _version, content_type, _msg_type, data) -> None:
+        if direction == "read" and int(content_type) == 21 and len(data) >= 2:
+            ulog.warning("TLS-Alert vom Client: level=%d desc=%d", data[0], data[1])
+            events.add("upload_tls_alert", level=data[0], desc=data[1])
+
+    ctx.sni_callback = _tls_hello
+    try:
+        ctx._msg_callback = _tls_msg  # type: ignore[attr-defined]
+    except Exception:  # pragma: no cover
+        pass
     runner = web.AppRunner(app, access_log=ulog)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", port, ssl_context=ctx)
