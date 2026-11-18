@@ -1,5 +1,5 @@
 name: Dreame Local Cloud
-version: "0.8.1"
+version: "0.9.0"
 slug: dreame_local_cloud
 description: Ersetzt die Dreame-Cloud lokal (MQTT/TLS) und bindet den Roboter per MQTT-Discovery in Home Assistant ein.
 url: https://github.com/dwyschka/Dreame-local
@@ -17,10 +17,12 @@ ports:
   19973/tcp: 19973
   13267/tcp: 13267
   8443/tcp: 8443
+  8081/tcp: 8081
 ports_description:
   19973/tcp: Dreame-Geraete-MQTT (DNS-Rewrite hierher)
   13267/tcp: Dreame-Cloud-API (DNS-Rewrite eu.iot.dreame.tech hierher)
   8443/tcp: HTTPS-Upload (Karten/Logs)
+  8081/tcp: HTTP-Upload (Karten/Logs, Standard)
 options:
   device_did: ""
   device_uid: ""
@@ -39,6 +41,8 @@ options:
   broker_port: 19973
   web_port: 8099
   upload_port: 8443
+  upload_http_port: 8081
+  upload_scheme: http
   api_port: 13267
   log_level: info
 schema:
@@ -59,5 +63,7 @@ schema:
   broker_port: port
   web_port: port
   upload_port: port
+  upload_http_port: port?
+  upload_scheme: list(http|https)?
   api_port: port
   log_level: list(debug|info|warning|error)

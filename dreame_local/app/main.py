@@ -27,7 +27,7 @@ from web import Web
 
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("OPTIONS_FILE", "/data/options.json"))
-VERSION = "0.8.1"
+VERSION = "0.9.0"
 
 
 def load_options() -> dict:
@@ -51,6 +51,8 @@ def load_options() -> dict:
         "broker_port",
         "web_port",
         "upload_port",
+        "upload_http_port",
+        "upload_scheme",
         "discovery_prefix",
         "api_port",
         "mac",
@@ -63,9 +65,10 @@ def load_options() -> dict:
 
 
 async def upload_server(
-    device: Device, port: int, cert: str, key: str, data_dir: Path, lan_ip: str = ""
+    device: Device, port: int, cert: str, key: str, data_dir: Path, lan_ip: str = "",
+    http_port: int = 0,
 ) -> None:
-    """HTTPS-Endpunkt, an den der Roboter Karten/Logs hochlaedt."""
+    """HTTPS-/HTTP-Endpunkt, an den der Roboter Karten/Logs hochlaedt."""
     ulog = logging.getLogger("upload")
     root = data_dir / "uploads"
 
@@ -153,6 +156,13 @@ async def upload_server(
     site = web.TCPSite(runner, "0.0.0.0", port, ssl_context=ctx)
     await site.start()
     ulog.info("HTTPS-Upload auf :%d", port)
+    # Der HTTP-Client des Roboters prueft das Upload-Zertifikat gegen sein
+    # oeffentliches CA-Bundle und bricht mit Alert 48 (unknown_ca) ab. Die
+    # Dreame-eigene Kette wird nur fuer MQTT akzeptiert. Deshalb zusaetzlich
+    # unverschluesselt im LAN.
+    if http_port:
+        await web.TCPSite(runner, "0.0.0.0", http_port).start()
+        ulog.info("HTTP-Upload auf :%d", http_port)
 
     async def _put_once(url: str) -> tuple[bool, str]:
         try:
@@ -212,12 +222,17 @@ async def amain() -> int:
     broker_port = int(opts.get("broker_port") or 19973)
     web_port = int(opts.get("web_port") or 8099)
     upload_port = int(opts.get("upload_port") or 8443)
+    upload_http_port = int(opts.get("upload_http_port") or 8081)
+    upload_scheme = str(opts.get("upload_scheme") or "http").strip().lower()
     api_port = int(opts.get("api_port") or 13267)
     lan_ip = str(opts.get("lan_ip") or "")
     # Optionaler Hostname fuer die Upload-URLs (statt der LAN-IP). Manche
     # Roboter-Firmware akzeptiert keine IP-basierten Presigned-URLs.
     upload_host = str(opts.get("upload_host") or "").strip() or lan_ip
-    upload_base = f"https://{upload_host}:{upload_port}" if upload_host else ""
+    if upload_scheme == "https":
+        upload_base = f"https://{upload_host}:{upload_port}" if upload_host else ""
+    else:
+        upload_base = f"http://{upload_host}:{upload_http_port}" if upload_host else ""
 
     # Auto-Provisioning: DID/UID/Modell kommen aus dem MQTT-CONNECT bzw. dev_start.
     if not did:
@@ -357,7 +372,9 @@ async def amain() -> int:
 
     async def safe_upload() -> None:
         try:
-            await upload_server(device, upload_port, cert, key, data_dir, lan_ip=lan_ip)
+            await upload_server(
+                device, upload_port, cert, key, data_dir, lan_ip=lan_ip, http_port=upload_http_port
+            )
         except OSError as exc:
             log.warning("HTTPS-Upload auf :%d nicht verfügbar (%s) – Karten-Uploads bleiben aus", upload_port, exc)
 
