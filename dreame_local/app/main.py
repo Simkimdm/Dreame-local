@@ -27,7 +27,7 @@ from web import Web
 
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("OPTIONS_FILE", "/data/options.json"))
-VERSION = "0.9.1"
+VERSION = "0.9.2"
 
 
 def load_options() -> dict:
@@ -246,7 +246,7 @@ async def amain() -> int:
     # Map-ID auf die gespeicherte Karte umgeschrieben, Frame-ID und Position
     # bleiben die des Live-Frames.
     def _saved_map_id() -> int:
-        root = data_dir / "uploads" / f"ali_dreame/{uid}/{did}"
+        root = device.upload_root()
         try:
             frame = (root / "9.frame").read_text().strip()
             text = frame.replace("_", "/").replace("-", "+")
@@ -265,10 +265,17 @@ async def amain() -> int:
             pass
         return 0
 
+    # Erst bei Bedarf ermitteln: DID/UID stehen oft erst nach CONNECT bzw.
+    # dev_start fest. Gefundene ID merken, sonst beim naechsten Frame erneut.
     saved_map_id = _saved_map_id()
 
     def map_transform(topic: str, payload: bytes) -> bytes:
-        if "/status/" not in topic or not saved_map_id:
+        nonlocal saved_map_id
+        if "/status/" not in topic:
+            return payload
+        if not saved_map_id:
+            saved_map_id = _saved_map_id()
+        if not saved_map_id:
             return payload
         try:
             msg = json.loads(payload)

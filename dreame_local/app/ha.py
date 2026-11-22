@@ -167,7 +167,7 @@ class HaBridge:
             "state_text": ("Status", "state", None, None),
             "error": ("Fehler", "error", None, None),
             "area": ("Gereinigte Fläche", "cleaned_area", "m²", None),
-            "time": ("Reinigungszeit", "cleaning_time", "s", "duration"),
+            "time": ("Reinigungszeit", "cleaning_time", "min", "duration"),
             "suction": ("Saugstufe", "suction", None, None),
             "water": ("Wassermenge", "water", None, None),
             "mode": ("Reinigungsmodus", "mode", None, None),

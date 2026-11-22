@@ -33,6 +33,23 @@ SUCTION_NAMES = _rev(SUCTION)
 WATER_NAMES = _rev(WATER)
 MODE_NAMES = _rev(MODE)
 
+
+def upload_root(data_dir: Path, uid: str, did: str) -> Path:
+    """Upload-Verzeichnis eines Geraets (ali_dreame/<uid>/<did>).
+
+    Nach einem Neustart ist die UID bis zum naechsten dev_start ggf. leer.
+    Dann nur ein eindeutiges Verzeichnis genau dieser DID verwenden; nie
+    anhand der Aktualitaet ein anderes Konto/Geraet waehlen.
+    """
+    base = data_dir / "uploads" / "ali_dreame"
+    root = base / str(uid) / str(did)
+    if not uid:
+        candidates = [p for p in base.glob("*/*") if p.name == str(did) and p.is_dir()]
+        if len(candidates) == 1:
+            root = candidates[0]
+    return root
+
+
 HA_STATE = {
     "SWEEPING": "cleaning",
     "MOPPING": "cleaning",
@@ -407,9 +424,12 @@ class Device:
             "set_properties", [{"did": self.did, "siid": p["siid"], "piid": p["piid"], "value": value}]
         )
 
+    def upload_root(self) -> Path:
+        return upload_root(self.data_dir, self.uid, self.did)
+
     def saved_map_id(self) -> int | None:
         """ID der gespeicherten Karte aus der hochgeladenen Map-Liste (curr_id)."""
-        root = self.data_dir / "uploads" / f"ali_dreame/{self.uid}/{self.did}"
+        root = self.upload_root()
         try:
             data = json.loads((root / "9").read_text())
             if isinstance(data, dict) and data.get("curr_id"):

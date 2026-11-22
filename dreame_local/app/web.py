@@ -15,7 +15,7 @@ from typing import Any
 from aiohttp import web
 
 import events
-from device import Device, MODE, SUCTION, WATER
+from device import Device, MODE, SUCTION, WATER, upload_root
 
 log = logging.getLogger("web")
 
@@ -632,16 +632,7 @@ class Web:
         return raw, width, height, info
 
     def _load_map(self):
-        root = self.data_dir / "uploads" / f"ali_dreame/{self.dev.uid}/{self.dev.did}"
-        if not self.dev.uid:
-            # UID can be empty after a server restart until the next dev_start.
-            # Read only an unambiguous cache for this exact device; never
-            # change identity or select another device/account by freshness.
-            base = self.data_dir / "uploads" / "ali_dreame"
-            candidates = [p for p in base.glob("*/*")
-                          if p.name == str(self.dev.did) and p.is_dir()]
-            if len(candidates) == 1:
-                root = candidates[0]
+        root = upload_root(self.data_dir, self.dev.uid, self.dev.did)
         best = None
         for name in ("9", "9.frame"):
             path = root / name
