@@ -68,6 +68,38 @@ Beides gleichzeitig geht, erzeugt aber doppelte Entitäten. Empfehlung:
 
 ---
 
+### API-TLS-Zertifikat für Modus B (Pflicht)
+
+Die Tasshack-Integration prüft das TLS-Zertifikat von
+`eu.iot.dreame.tech:13267` vollständig (CA + Hostname/SAN). Das
+Default-Zertifikat des Add-ons (`app/certs/server_chain.pem`, `CN=client`)
+ist die Kette, die der **Roboter** für MQTT akzeptiert — sie hat kein SAN
+und ist nicht öffentlich vertraut. Daher schlägt der Login der Integration
+mit `Login failed: certificate verify failed ... CN=client` fehl. Der echte
+Cloud-API-Server nutzt dagegen ein öffentliches `CN=*.iot.dreame.tech`-
+Zertifikat (`docs/FINDINGS.md`). Lets Encrypt kann die Domain nicht ausstellen.
+
+Lösung: Beim **ersten Start** erzeugt das Add-on automatisch eine eigene lokale
+CA + ein Leaf mit `SAN=DNS:<region>.iot.dreame.tech` unter `/data/certs/` und
+liefert es **nur auf Port 13267** aus (Broker 19973 und Upload 8443/19980
+behalten die Dreame-Kette). Einmalig manuell bleibt nur:
+
+1. CA in den Trust-Store von HA Core installieren. Download der CA direkt aus
+   der Add-on-Web-UI: `https://<HA-IP>:8099/api/ca.pem` (oder `/data/certs/ca.pem`
+   per Samba/Studio Code Server holen), dann im Terminal-Add-on (Protection AUS):
+   `cp dreame-local-ca.pem /usr/local/share/ca-certificates/dreame-local.crt && update-ca-certificates`
+   (HA Container stattdessen Umgebungsvariable `SSL_CERT_FILE=/config/dreame-local-ca.pem`
+   setzen und die CA nach `/config` kopieren. Nach einem Core-Update erneut
+   installieren.)
+2. Add-on neu starten, dann die Integration neu einrichten. Im Add-on-Log muss
+   `Login von ...` erscheinen.
+
+Optional lässt sich das Zertifikat über die Optionen `api_cert`/`api_key`
+überschreiben (Pfad im Add-on oder inline-PEM); `tools/gen_local_api_cert.sh`
+erzeugt manuell eine CA für eigene SANs.
+
+---
+
 ## 3. Installation (über das Add-on-Repository)
 
 1. **Repository hinzufügen**
@@ -98,6 +130,8 @@ Beides gleichzeitig geht, erzeugt aber doppelte Entitäten. Empfehlung:
    mac: ""                               # optional, für die Integration
    broker_port: 19973
    api_port: 13267
+   api_cert: ""                          # optional: ueberschreibt das automatisch erzeugte API-Zertifikat (Pfad im Add-on oder inline-PEM), siehe "API-TLS-Zertifikat"
+   api_key: ""                           # optional: zugehoeriger Key
    web_port: 8099
    upload_port: 8443
    log_level: "info"
@@ -232,6 +266,7 @@ werden muss.
 | Roboter verbindet nicht | DNS-Rewrite prüfen (`dig`), Port 19973 in der Firewall, `lan_ip` korrekt |
 | „Roboter verbunden" von falscher IP | Ein Testclient nutzt `device_<did>`; `device_ip` auf die echte Roboter-IP setzen und den Testclient stoppen. Der Broker wirft die alte Session bei gleicher Client-ID raus |
 | `TLS handshake failed` im Log | falsches Zertifikat in `app/certs/` (muss die Dreame-Kette sein) |
+| `Login failed: certificate verify failed` ... `CN=client` in HA | CA des Add-ons nicht im HA-Trust-Store installiert — CA laden (`https://<HA-IP>:8099/api/ca.pem`) und in HA Core installieren (siehe „API-TLS-Zertifikat für Modus B“) |
 | Keine Entitäten in HA | Mosquitto/MQTT-Integration prüfen, `discovery_prefix` = `homeassistant` |
 | Roboter „offline" in der Dreame-App | **normal** im lokalen Betrieb |
 | Karte fehlt | Uploads landen in `/data/uploads`; Diagnose: `/api/diagnostics` → `uploads`, `presigned_urls`, `upload`. Der Roboter holt neue Upload-URLs nur etwa stündlich bzw. nach Neustart/Kartenänderung – nach einem Add-on-Update einmal Roboter neu starten oder kurz reinigen lassen |
@@ -372,6 +407,8 @@ device_ip: ""                         # optional: only this robot IP may use dev
 mac: ""                               # optional
 broker_port: 19973
 api_port: 13267
+api_cert: ""                         # optional: overrides the auto-generated API certificate (path inside the add-on or inline PEM)
+api_key: ""                          # optional: matching key
 web_port: 8099
 upload_port: 8443
 log_level: "info"
@@ -463,6 +500,19 @@ and stop the test client.
 The existing vacuum entity, sensors, map camera and map cards keep working.
 Reload the integration after an add-on update.
 
+> **API TLS certificate (required for Mode B):** the integration verifies TLS
+> for `eu.iot.dreame.tech:13267` (CA + SAN). The add-on's robot certificate
+> (`CN=client`) fails this check with
+> `Login failed: certificate verify failed ... CN=client`. On first start the
+> add-on auto-generates a local CA + leaf with `SAN=DNS:eu.iot.dreame.tech`
+> under `/data/certs/` and serves it on port 13267 only. Remaining manual step:
+> download the CA from the add-on web UI (`https://<HA-IP>:8099/api/ca.pem`)
+> and install it into the HA Core trust store (Terminal add-on, protection off:
+> `cp dreame-local-ca.pem /usr/local/share/ca-certificates/ && update-ca-certificates`;
+> HA Container: set `SSL_CERT_FILE=/config/dreame-local-ca.pem`). Override with
+> `api_cert`/`api_key` if needed; `tools/gen_local_api_cert.sh` generates a
+> custom CA manually.
+
 ### 7. Map, live position and trail
 
 The map is served by the add-on through the Dreame API emulation. With 0.3.18:
@@ -534,6 +584,7 @@ POST http://<HA-IP>:8099/api/command   {"action":"start"}
 | `mqtt_reject` in the log | `device_ip` does not match the robot; correct it or clear it |
 | Robot connects from the wrong IP | A test client is using `device_<did>`; stop it and/or set `device_ip` |
 | `TLS handshake failed` | Wrong certificate in `app/certs/`; use the Dreame chain from the app |
+| `Login failed: certificate verify failed` ... `CN=client` in HA logs | Add-on CA not trusted by HA Core: download `https://<HA-IP>:8099/api/ca.pem` and install it in the HA Core trust store |
 | No integration entities | Check HACS integration, DNS for `eu.iot.dreame.tech`, and reload the integration |
 | Map empty / `GET /files/...` 404 | No upload yet or stale URL; check `8443`, `upload_host`, `uploads` and power-cycle the robot |
 | Map has no trail | Update to 0.3.18+, trigger a cleaning; the trail is persisted per run |

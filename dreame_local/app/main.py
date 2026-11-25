@@ -19,6 +19,7 @@ import aiohttp
 from aiohttp import web
 
 from api import DreameApi
+from certutil import ensure_api_cert, resolve_material
 import events
 from broker import MqttBroker
 from device import Device
@@ -27,7 +28,7 @@ from web import Web
 
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("OPTIONS_FILE", "/data/options.json"))
-VERSION = "0.9.2"
+VERSION = "0.9.3"
 
 
 def load_options() -> dict:
@@ -54,6 +55,8 @@ def load_options() -> dict:
         "upload_http_port",
         "upload_scheme",
         "discovery_prefix",
+        "api_cert",
+        "api_key",
         "api_port",
         "mac",
         "log_level",
@@ -219,6 +222,15 @@ async def amain() -> int:
     uid = str(opts.get("device_uid") or "")
     model = str(opts.get("device_model") or "dreame.vacuum.r2469a")
     region = str(opts.get("region") or "eu")
+    api_cert_opt = str(opts.get("api_cert") or "").strip()
+    api_key_opt = str(opts.get("api_key") or "").strip()
+    if api_cert_opt or api_key_opt:
+        api_cert = resolve_material(api_cert_opt, cert, data_dir, "api_chain.pem")
+        api_key = resolve_material(api_key_opt, key, data_dir, "api.key")
+    else:
+        api_cert, api_key, api_ca = ensure_api_cert(data_dir, region)
+        log.info("API-Zertifikat automatisch erzeugt: %s (CA: %s)", api_cert, api_ca)
+        log.info("CA in den HA-Core-Trust-Store installieren (Download: Web-UI /api/ca.pem)")
     broker_port = int(opts.get("broker_port") or 19973)
     web_port = int(opts.get("web_port") or 8099)
     upload_port = int(opts.get("upload_port") or 8443)
@@ -370,8 +382,8 @@ async def amain() -> int:
     api = DreameApi(
         device,
         api_port,
-        cert,
-        key,
+        api_cert,
+        api_key,
         data_dir,
         public_host=lan_ip,
         mac=str(opts.get("mac") or ""),
