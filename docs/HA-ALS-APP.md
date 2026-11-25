@@ -68,6 +68,13 @@ aus der Integration.
 
 ## 4. Integration einrichten
 
+> **API-TLS-Zertifikat nötig:** Die Integration prüft TLS für
+> `eu.iot.dreame.tech:13267` (CA + SAN). Ohne eigenes Zertifikat schlägt der
+> Login mit `certificate verify failed ... CN=client` fehl. Lokales CA + Leaf
+> erzeugen (`tools/gen_local_api_cert.sh`), CA in den HA-Core-Trust-Store
+> installieren, `api_cert`/`api_key` in der Add-on-Konfiguration setzen
+> (Details siehe README, Abschnitt „API-TLS-Zertifikat für Modus B“).
+
 1. HACS → Integrationen → **Dreame Vacuum** installieren, HA neu starten.
 2. Einstellungen → Geräte & Dienste → Integration hinzufügen →
    **Dreame Vacuum**.
@@ -154,6 +161,7 @@ Firmware-Updates gebraucht.
 | Problem | Prüfen |
 |---|---|
 | Integration meldet Login-Fehler | DNS `eu.iot.dreame.tech` → HA-IP? Port 13267 offen? Add-on-Log |
+| Login-Fehler `certificate verify failed` ... `CN=client` | API-Zertifikat einrichten: lokales CA + SAN `eu.iot.dreame.tech` (`tools/gen_local_api_cert.sh`), CA in HA-Trust-Store, `api_cert`/`api_key` im Add-on setzen |
 | Gerät wird nicht gefunden | `device_did` leer? Roboter verbunden (`Roboter verbunden` im Log)? |
 | Gerät offline | DNS `*.mt…` → HA-IP? Port 19973? |
 | Karte leer | Einmal reinigen lassen; `MAP_LIST` im Log? Datei in `/data/uploads`? |

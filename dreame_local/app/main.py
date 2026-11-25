@@ -19,6 +19,7 @@ import aiohttp
 from aiohttp import web
 
 from api import DreameApi
+from certutil import resolve_material
 import events
 from broker import MqttBroker
 from device import Device
@@ -27,7 +28,7 @@ from web import Web
 
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("OPTIONS_FILE", "/data/options.json"))
-VERSION = "0.9.2"
+VERSION = "0.9.3"
 
 
 def load_options() -> dict:
@@ -54,6 +55,8 @@ def load_options() -> dict:
         "upload_http_port",
         "upload_scheme",
         "discovery_prefix",
+        "api_cert",
+        "api_key",
         "api_port",
         "mac",
         "log_level",
@@ -214,6 +217,8 @@ async def amain() -> int:
             pass
     cert = str(HERE / "certs" / "server_chain.pem")
     key = str(HERE / "certs" / "server.key")
+    api_cert = resolve_material(str(opts.get("api_cert") or ""), cert, data_dir, "api_chain.pem")
+    api_key = resolve_material(str(opts.get("api_key") or ""), key, data_dir, "api.key")
 
     did = str(opts.get("device_did") or "")
     uid = str(opts.get("device_uid") or "")
@@ -370,8 +375,8 @@ async def amain() -> int:
     api = DreameApi(
         device,
         api_port,
-        cert,
-        key,
+        api_cert,
+        api_key,
         data_dir,
         public_host=lan_ip,
         mac=str(opts.get("mac") or ""),
