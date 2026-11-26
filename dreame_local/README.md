@@ -8,13 +8,13 @@ Empfohlen: die bestehende **Dreame-Vacuum-Integration** (HACS) läuft
 unverändert gegen dieses Add-on, inklusive Karte und Karten-Cards.
 Optional gibt es einen schlanken MQTT-Discovery-Modus ohne HACS.
 
-> 🇬🇧 **English installation guide:** [full guide in the repository README](https://github.com/dwyschka/Dreame-local/blob/main/README.md#english-installation-guide)
+> 🇬🇧 **English installation guide:** [full guide in the repository README](https://github.com/Simkimdm/Dreame-local/blob/main/README.md#english-installation-guide)
 
 ## English Installation (short)
 
 1. In Home Assistant open **Settings → Add-ons → Add-on Store → ⋮ →
    Repositories** and add
-   `https://github.com/dwyschka/Dreame-local`.
+   `https://github.com/Simkimdm/Dreame-local`.
 2. Install **Dreame Local Cloud**, open **Configuration**, set `lan_ip` to the
    HA host IP reachable by the robot, and start the add-on.
 3. Add DNS rewrites:
@@ -38,7 +38,7 @@ Never expose them to the internet.
 ## Installation
 
 1. Einstellungen → Add-ons → Add-on-Store → ⋮ → **Repositories**
-   → `https://github.com/dwyschka/Dreame-local` hinzufügen.
+   → `https://github.com/Simkimdm/Dreame-local` hinzufügen.
 2. „Dreame Local Cloud" installieren und starten.
 3. DNS-Rewrites (AdGuard Home → DNS rewrites):
 
@@ -106,7 +106,7 @@ Events `presigned_urls`, `upload` und `map_url` prüfen; die Dateien liegen
 im Add-on unter `/data/uploads`.
 
 Dashboard-Beispiele:
-[docs/HA-ALS-APP.md](https://github.com/dwyschka/Dreame-local/blob/main/docs/HA-ALS-APP.md)
+[docs/HA-ALS-APP.md](https://github.com/Simkimdm/Dreame-local/blob/main/docs/HA-ALS-APP.md)
 
 ## Hinweise
 
@@ -116,4 +116,4 @@ Dashboard-Beispiele:
   offline (kein Fernzugriff).
 - Nur im LAN betreiben; der Broker akzeptiert jede Authentifizierung.
 - Vollständige Anleitung und Fehlerbehebung:
-  <https://github.com/dwyschka/Dreame-local>
+  <https://github.com/Simkimdm/Dreame-local>
