@@ -2,7 +2,7 @@ name: Dreame Local Cloud
 version: "0.9.3"
 slug: dreame_local_cloud
 description: Ersetzt die Dreame-Cloud lokal (MQTT/TLS) und bindet den Roboter per MQTT-Discovery in Home Assistant ein.
-url: https://github.com/dwyschka/Dreame-local
+url: https://github.com/Simkimdm/Dreame-local
 arch:
   - aarch64
   - amd64

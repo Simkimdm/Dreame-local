@@ -105,7 +105,7 @@ erzeugt manuell eine CA für eigene SANs.
 1. **Repository hinzufügen**
    - Einstellungen → Add-ons → Add-on-Store
    - oben rechts ⋮ → **Repositories**
-   - `https://github.com/dwyschka/Dreame-local` eintragen → **Hinzufügen**
+   - `https://github.com/Simkimdm/Dreame-local` eintragen → **Hinzufügen**
 
 2. **Add-on installieren**
    - Store neu laden (Seite aktualisieren)
@@ -385,7 +385,7 @@ host. Do **not** expose any of these ports to the internet.
 
 1. In Home Assistant open **Settings → Add-ons → Add-on Store**.
 2. Open the three-dot menu (⋮) → **Repositories**.
-3. Add `https://github.com/dwyschka/Dreame-local` and confirm.
+3. Add `https://github.com/Simkimdm/Dreame-local` and confirm.
 4. Reload the store, open **Dreame Local Cloud** and click **Install**.
 5. Open the **Configuration** tab and paste the configuration below, then
    start the add-on.
