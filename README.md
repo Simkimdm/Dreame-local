@@ -120,6 +120,24 @@ Die Bridge läuft im HA-Core-Prozess und:
 Damit entfällt das Skript nach **HA-Core-Updates**. Wichtig: Der Ordner muss
 in `/config` liegen (persistent), nicht im Add-on-Container.
 
+**Betrieb nach der Einrichtung:** Es ist nichts regelmäßig auszuführen.
+
+| Ereignis | Verhalten / Aktion |
+|---|---|
+| HA-Core-Start oder Core-Update | Bridge trägt die CA automatisch wieder ein; keine Aktion |
+| HACS-Update der Dreame-Vacuum-Integration | Bridge setzt den TLS-Cache zurück und lädt die Einträge neu; keine Aktion |
+| Add-on-Update mit neuer CA | einmal `ha core restart` |
+| `/share/dreame-local-ca.pem` fehlt | Add-on starten, dann `ha core restart` |
+| Custom Component gelöscht / Backup ohne sie | `install-bridge.sh` einmal erneut ausführen und Integration erneut hinzufügen |
+
+Prüfen, ob die Bridge eingerichtet ist:
+
+```bash
+grep -o '"domain": "dreame_local_ca"' /config/.storage/core.config_entries
+```
+
+Eine Ausgabe bedeutet: Bridge ist als Integration vorhanden.
+
 #### Einmalig / Fallback: `install-ca.sh`
 
 Auf dem HA-OS-Host bzw. im Terminal/SSH-Add-on (Protection **AUS**):
@@ -313,7 +331,7 @@ werden muss.
 | Roboter verbindet nicht | DNS-Rewrite prüfen (`dig`), Port 19973 in der Firewall, `lan_ip` korrekt |
 | „Roboter verbunden" von falscher IP | Ein Testclient nutzt `device_<did>`; `device_ip` auf die echte Roboter-IP setzen und den Testclient stoppen. Der Broker wirft die alte Session bei gleicher Client-ID raus |
 | `TLS handshake failed` im Log | falsches Zertifikat in `app/certs/` (muss die Dreame-Kette sein) |
-| `Login failed: certificate verify failed` ... `CN=client` in HA | CA fehlt in `certifi` des HA-Core-Containers (nicht im System-Trust-Store!) — `install-ca.sh` vom Add-on (Port 19980) ausführen, dann `ha core restart` (siehe „API-TLS-Zertifikat für Modus B“) |
+| `Login failed: certificate verify failed` ... `CN=client` in HA | Zuerst prüfen, ob **Dreame Local CA** als Integration eingerichtet ist (`grep -o '"domain": "dreame_local_ca"' /config/.storage/core.config_entries`). Sonst `install-bridge.sh` ausführen, `ha core restart`, Integration hinzufügen. Fallback: `install-ca.sh` (nicht System-Trust-Store!) |
 | Keine Entitäten in HA | Mosquitto/MQTT-Integration prüfen, `discovery_prefix` = `homeassistant` |
 | Roboter „offline" in der Dreame-App | **normal** im lokalen Betrieb |
 | Karte fehlt | Uploads landen in `/data/uploads`; Diagnose: `/api/diagnostics` → `uploads`, `presigned_urls`, `upload`. Der Roboter holt neue Upload-URLs nur etwa stündlich bzw. nach Neustart/Kartenänderung – nach einem Add-on-Update einmal Roboter neu starten oder kurz reinigen lassen |
