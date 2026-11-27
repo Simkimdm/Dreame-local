@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import io
 import json
 import logging
 import os
 import ssl
 import sys
+import tarfile
 import zlib
 from pathlib import Path
 
@@ -142,6 +144,47 @@ async def upload_server(
         )
 
     app.add_routes([web.get("/ca.pem", ca_pem), web.get("/dreame-local-ca.pem", ca_pem)])
+
+    def _bridge_tar() -> bytes:
+        """Custom Component als tar.gz (ohne __pycache__) verpacken."""
+        buf = io.BytesIO()
+
+        def _filter(info: tarfile.TarInfo):
+            if info.name.endswith(".pyc") or Path(info.name).name in ("__pycache__", ".DS_Store"):
+                return None
+            return info
+
+        with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+            tar.add(HERE / "dreame_local_ca", arcname="dreame_local_ca", filter=_filter)
+        return buf.getvalue()
+
+    async def bridge_tar(_request: web.Request) -> web.Response:
+        return web.Response(
+            body=_bridge_tar(),
+            content_type="application/gzip",
+            headers={"Content-Disposition": 'attachment; filename="dreame_local_ca.tar.gz"'},
+        )
+
+    async def install_bridge(request: web.Request) -> web.Response:
+        base = (
+            f"http://{lan_ip}:{http_port}"
+            if lan_ip and http_port
+            else f"{request.scheme}://{request.host}"
+        )
+        template = (HERE / "install_ca_bridge.sh").read_text()
+        return web.Response(
+            text=template.replace("__BASE_URL__", base),
+            content_type="text/x-shellscript",
+            headers={"Content-Disposition": 'attachment; filename="install-bridge.sh"'},
+        )
+
+    app.add_routes(
+        [
+            web.get("/dreame_local_ca.tar.gz", bridge_tar),
+            web.get("/install-bridge.sh", install_bridge),
+            web.get("/install_ca_bridge.sh", install_bridge),
+        ]
+    )
 
     async def install_ca(_request: web.Request) -> web.Response:
         target = HERE / "install_ca.sh"

@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CA_PY = ROOT / "custom_components" / "dreame_local_ca" / "ca.py"
+CA_PY = ROOT / "dreame_local" / "app" / "dreame_local_ca" / "ca.py"
 spec = importlib.util.spec_from_file_location("dreame_local_ca_ca", CA_PY)
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)  # type: ignore[union-attr]

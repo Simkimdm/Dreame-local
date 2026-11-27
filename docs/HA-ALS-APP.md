@@ -74,11 +74,19 @@ aus der Integration.
 > Tasshack ≥ 2.0.3 prüft **nur gegen `certifi`**, nicht gegen den
 > System-Trust-Store.
 >
-> **Dauerhaft (empfohlen):** `custom_components/dreame_local_ca` nach
-> `/config/custom_components/` kopieren, HA Core neu starten, dann die
-> Integration **Dreame Local CA** einmal hinzufügen. Die Bridge trägt die CA
-> bei jedem Start erneut ein und lädt `dreame_vacuum` neu — kein Skript nach
-> Core-Updates.
+> **Dauerhaft (empfohlen):** einmalig im Terminal/SSH-Add-on (Protection kann
+> anbleiben):
+>
+> ```bash
+> curl -fsSL http://<HA-IP>:19980/install-bridge.sh -o /tmp/install-bridge.sh
+> bash /tmp/install-bridge.sh
+> ha core restart
+> ```
+>
+> Danach die Integration **Dreame Local CA** einmal hinzufügen. Die Bridge
+> trägt die CA bei jedem Start erneut ein und lädt `dreame_vacuum` neu — kein
+> Skript nach Core-Updates. Manuell: Ordner
+> `dreame_local/app/dreame_local_ca` nach `/config/custom_components/`.
 >
 > **Fallback:** Einmalig auf dem HA-Host (Terminal/SSH-Add-on, Protection
 > AUS):
