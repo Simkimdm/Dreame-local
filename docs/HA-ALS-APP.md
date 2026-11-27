@@ -72,8 +72,16 @@ aus der Integration.
 > `eu.iot.dreame.tech:13267` (CA + SAN). Beim ersten Start erzeugt das Add-on
 > automatisch eine lokale CA + Leaf mit SAN (`/data/certs/`, nur Port 13267).
 > Tasshack ≥ 2.0.3 prüft **nur gegen `certifi`**, nicht gegen den
-> System-Trust-Store. Einmalig auf dem HA-Host (Terminal/SSH-Add-on,
-> Protection AUS):
+> System-Trust-Store.
+>
+> **Dauerhaft (empfohlen):** `custom_components/dreame_local_ca` nach
+> `/config/custom_components/` kopieren, HA Core neu starten, dann die
+> Integration **Dreame Local CA** einmal hinzufügen. Die Bridge trägt die CA
+> bei jedem Start erneut ein und lädt `dreame_vacuum` neu — kein Skript nach
+> Core-Updates.
+>
+> **Fallback:** Einmalig auf dem HA-Host (Terminal/SSH-Add-on, Protection
+> AUS):
 >
 > ```bash
 > curl -fsSL http://<HA-IP>:19980/install-ca.sh -o /tmp/install-ca.sh
@@ -82,7 +90,8 @@ aus der Integration.
 > ```
 >
 > Die CA liegt nach dem Add-on-Start unter `/share/dreame-local-ca.pem` bzw.
-> `http://<HA-IP>:19980/ca.pem`. Nach jedem Core-Update erneut ausführen.
+> `http://<HA-IP>:19980/ca.pem`. Der Fallback muss nach jedem Core-Update
+> erneut ausgeführt werden; mit der Custom Component entfällt das.
 > Details siehe README, Abschnitt „API-TLS-Zertifikat für Modus B“.
 
 1. HACS → Integrationen → **Dreame Vacuum** installieren, HA neu starten.

@@ -93,7 +93,28 @@ die Dreame-Kette).
 
 Das Add-on exportiert die CA nach `/share/dreame-local-ca.pem` und liefert
 sie zusätzlich unverschlüsselt unter `http://<HA-IP>:19980/ca.pem` aus.
-Einmalig auf dem HA-OS-Host bzw. im Terminal/SSH-Add-on (Protection **AUS**):
+Damit gibt es zwei Wege:
+
+#### Dauerhaft (empfohlen): Custom Component `dreame_local_ca`
+
+Einmalig den Ordner `custom_components/dreame_local_ca` aus dem Repo nach
+`/config/custom_components/dreame_local_ca` kopieren (Samba, Studio Code
+Server oder Terminal-Add-on), HA Core neu starten und unter
+**Einstellungen → Geräte & Dienste → Integration hinzufügen → „Dreame Local
+CA“** einrichten.
+
+Die Bridge läuft im HA-Core-Prozess und:
+
+- hängt die CA bei jedem HA-Start erneut an `certifi` an, falls sie fehlt,
+- setzt den TLS-Cache der Dreame-Vacuum-Integration zurück,
+- lädt vorhandene `dreame_vacuum`-Einträge nach dem Start neu.
+
+Damit entfällt das Skript nach **HA-Core-Updates**. Wichtig: Der Ordner muss
+in `/config` liegen (persistent), nicht im Add-on-Container.
+
+#### Einmalig / Fallback: `install-ca.sh`
+
+Auf dem HA-OS-Host bzw. im Terminal/SSH-Add-on (Protection **AUS**):
 
 ```bash
 curl -fsSL http://<HA-IP>:19980/install-ca.sh -o /tmp/install-ca.sh
@@ -107,8 +128,8 @@ Containers, legt ein Backup an und prüft den TLS-Handshake gegen
 Add-on-Log muss `Login von ...` erscheinen; bei einem Zertifikatsfehler
 steht dort jetzt zusätzlich `API-TLS: Alert vom Client ...`.
 
-Nach jedem **HA-Core-Update** den `certifi`-Store erneut patchen (Skript
-erneut ausführen, `ha core restart`), da das Container-Image ersetzt wird.
+Der Fallback muss nach jedem **HA-Core-Update** erneut laufen, da das
+Container-Image `certifi` ersetzt. Mit der Custom Component entfällt das.
 Das Skript liegt auch im Repo unter `tools/install_ha_ca.sh`.
 
 Optional lässt sich das Zertifikat über die Optionen `api_cert`/`api_key`
@@ -531,8 +552,16 @@ Reload the integration after an add-on update.
 > login. The CA must be appended to the `certifi/cacert.pem` of the
 > `homeassistant` container. The add-on exports it to
 > `/share/dreame-local-ca.pem` and also serves it at
-> `http://<HA-IP>:19980/ca.pem`. On the HA OS host (Terminal/SSH add-on,
-> protection **off**):
+> `http://<HA-IP>:19980/ca.pem`.
+>
+> **Persistent (recommended):** copy `custom_components/dreame_local_ca` from
+> this repository to `/config/custom_components/dreame_local_ca`, restart HA
+> Core, then add the **Dreame Local CA** integration once. It re-appends the
+> CA to `certifi` on every HA start and reloads `dreame_vacuum`, so no script
+> is needed after HA Core updates.
+>
+> **One-shot fallback:** on the HA OS host (Terminal/SSH add-on, protection
+> **off**):
 >
 > ```bash
 > curl -fsSL http://<HA-IP>:19980/install-ca.sh -o /tmp/install-ca.sh
@@ -540,9 +569,9 @@ Reload the integration after an add-on update.
 > ha core restart
 > ```
 >
-> Run it again after every HA Core update. Override `api_cert`/`api_key` if
-> needed; `tools/gen_local_api_cert.sh` generates a custom CA manually, but
-> that CA must also be added to `certifi`.
+> The fallback must be repeated after every HA Core update. Override
+> `api_cert`/`api_key` if needed; `tools/gen_local_api_cert.sh` generates a
+> custom CA manually, but that CA must also be added to `certifi`.
 
 ### 7. Map, live position and trail
 
