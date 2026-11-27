@@ -42,7 +42,7 @@ def export_ca(data_dir: Path, *destinations: Path) -> list[str]:
     Die Tasshack-Integration (>= 2.0.3) prueft mit ihrem eigenen TLS-Stack
     gegen certifi, nicht gegen den System-Trust-Store. Die CA muss deshalb
     in die certifi-Datei des HA-Core-Containers. Damit sie dort erreichbar
-    ist, exportiert das Add-on sie nach /share (und /config, falls gemappt).
+    ist, exportiert das Add-on sie nach /share.
     """
     ca = data_dir / "certs" / "ca.pem"
     if not ca.is_file():

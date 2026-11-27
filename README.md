@@ -156,7 +156,7 @@ steht dort jetzt zusätzlich `API-TLS: Alert vom Client ...`.
 
 Der Fallback muss nach jedem **HA-Core-Update** erneut laufen, da das
 Container-Image `certifi` ersetzt. Mit der Custom Component entfällt das.
-Das Skript liegt auch im Repo unter `tools/install_ha_ca.sh`.
+Das Skript liegt auch im Repo unter `dreame_local/app/install_ca.sh`.
 
 Optional lässt sich das Zertifikat über die Optionen `api_cert`/`api_key`
 überschreiben (Pfad im Add-on oder inline-PEM); `tools/gen_local_api_cert.sh`
@@ -679,7 +679,7 @@ POST http://<HA-IP>:8099/api/command   {"action":"start"}
 | `mqtt_reject` in the log | `device_ip` does not match the robot; correct it or clear it |
 | Robot connects from the wrong IP | A test client is using `device_<did>`; stop it and/or set `device_ip` |
 | `TLS handshake failed` | Wrong certificate in `app/certs/`; use the Dreame chain from the app |
-| `Login failed: certificate verify failed` ... `CN=client` in HA logs | CA missing from `certifi` in the HA Core container (not the system trust store): run `install-ca.sh` from the add-on (port 19980), then `ha core restart` |
+| `Login failed: certificate verify failed` ... `CN=client` in HA logs | First check that **Dreame Local CA** is set up (`grep -o '"domain": "dreame_local_ca"' /config/.storage/core.config_entries`). Otherwise run `install-bridge.sh`, `ha core restart`, add the integration. Fallback: `install-ca.sh` (not the system trust store) |
 | No integration entities | Check HACS integration, DNS for `eu.iot.dreame.tech`, and reload the integration |
 | Map empty / `GET /files/...` 404 | No upload yet or stale URL; check `8443`, `upload_host`, `uploads` and power-cycle the robot |
 | Map has no trail | Update to 0.3.18+, trigger a cleaning; the trail is persisted per run |
