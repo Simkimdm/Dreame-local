@@ -40,11 +40,14 @@ Erzeugt in $OUT:
   api_chain.pem  -> Leaf + CA (Add-on-Option api_cert)
   api.key        -> Leaf-Key (Add-on-Option api_key)
 
-1) CA in HA Core installieren (Terminal-Add-on, Protection AUS):
-     cp $OUT/ca.pem /usr/local/share/ca-certificates/dreame-local.crt
-     update-ca-certificates
-   (HA Container stattdessen: Umgebungsvariable SSL_CERT_FILE=/config/dreame-local-ca.pem
-    setzen und ca.pem nach /config kopieren. Nach einem Core-Update Trust-Store erneuern.)
+1) CA in die certifi-Datei von HA Core installieren (Terminal/SSH-Add-on,
+   Protection AUS):
+     curl -fsSL http://<HA-IP>:19980/install-ca.sh -o /tmp/install-ca.sh
+     bash /tmp/install-ca.sh <pfad>/ca.pem
+     ha core restart
+   Der System-Trust-Store (update-ca-certificates) wird von der
+   Tasshack-Integration ignoriert; sie prueft ausschliesslich gegen certifi.
+   Nach einem Core-Update erneut ausfuehren.
 
 2) api_chain.pem + api.key ins Add-on kopieren, z. B. nach /data/certs/
    (Samba-Share/Studio Code Server), dann in der Add-on-Konfiguration:

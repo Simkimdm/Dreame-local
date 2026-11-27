@@ -26,9 +26,19 @@ Optional gibt es einen schlanken MQTT-Discovery-Modus ohne HACS.
    (`10000.mt.eu.iot.dreame.tech` on most robots).
 4. Install **Dreame Vacuum** through HACS, add the integration, choose
    **Dreame Home**, region `eu`, username/password can be arbitrary.
-5. Power-cycle the robot and wait 30–90 seconds. It should connect to the
+5. On the HA OS host (Terminal/SSH add-on, protection off) install the
+   add-on CA into the HA Core `certifi` store, then restart Core:
+   ```bash
+   curl -fsSL http://<HA-IP>:19980/install-ca.sh -o /tmp/install-ca.sh
+   bash /tmp/install-ca.sh
+   ha core restart
+   ```
+   The integration trusts only `certifi`, not the system trust store. The CA
+   is exported to `/share/dreame-local-ca.pem` and served at
+   `http://<HA-IP>:19980/ca.pem`. Re-run after every Core update.
+6. Power-cycle the robot and wait 30–90 seconds. It should connect to the
    local add-on; the log shows `CONNECT device_<did>` and `SUBSCRIBE`.
-6. Keep `mqtt_host` empty for the integration mode. Use
+7. Keep `mqtt_host` empty for the integration mode. Use
    `upload_host: eu.iot.dreame.tech` if the robot rejects IP-based upload
    URLs.
 
@@ -55,7 +65,17 @@ Never expose them to the internet.
    - Konto-Typ: **Dreame Home**
    - Region: **`eu`**
    - Benutzername/Passwort: **beliebig** (lokal wird alles akzeptiert)
-5. Roboter stromlos machen und wieder einschalten. Nach ~1 Minute ist er
+5. Auf dem HA-OS-Host (Terminal/SSH-Add-on, Protection AUS) die Add-on-CA
+   in den `certifi`-Store von HA Core legen, dann Core neu starten:
+   ```bash
+   curl -fsSL http://<HA-IP>:19980/install-ca.sh -o /tmp/install-ca.sh
+   bash /tmp/install-ca.sh
+   ha core restart
+   ```
+   Die Integration prüft nur gegen `certifi`, nicht gegen den
+   System-Trust-Store. Die CA liegt unter `/share/dreame-local-ca.pem` bzw.
+   `http://<HA-IP>:19980/ca.pem`. Nach jedem Core-Update erneut ausführen.
+6. Roboter stromlos machen und wieder einschalten. Nach ~1 Minute ist er
    in Home Assistant verfügbar.
 
 > Nur Discovery-Modus ohne Integration: dann reicht der zweite Rewrite

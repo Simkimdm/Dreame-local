@@ -5,6 +5,8 @@ Zertifikate/Material, das nicht im Repo liegt (siehe `docs/FINDINGS.md`).
 
 | Datei | Zweck |
 |---|---|
+| `install_ha_ca.sh` | Add-on-CA in die `certifi`-Datei des HA-Core-Containers legen (Tasshack ≥ 2.0.3 prüft nicht gegen den System-Trust-Store). Kanonisch: `dreame_local/app/install_ca.sh`; das Add-on liefert es unter `http://<HA-IP>:19980/install-ca.sh` aus |
+| `gen_local_api_cert.sh` | Alternative lokale API-CA + Leaf manuell erzeugen |
 | `gen_ca.py` | Rekonstruiert die acht schwachen eMudhra-Intermediate-Keys und baut Test-Ketten (`src/impacted-intermediates.json`) |
 | `run_capture.sh` | mitmproxy als Reverse-Proxy für 19973 (MQTT) und 13267 (API) |
 | `addons/mqtt_dump.py` | mitmproxy-Addon: ClientHello + MQTT-Decoder + HTTP-Dump |

@@ -123,6 +123,29 @@ class DreameApi:
 
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         ctx.load_cert_chain(self.cert, self.key)
+
+        # Diagnose: Die Integration scheitert entweder vor dem Handshake
+        # (DNS/Firewall) oder an der Zertifikatspruefung (Alert vom Client).
+        def _tls_hello(_sslobj, server_name, _ctx) -> None:
+            log.info("API-TLS: Handshake eingehend (SNI=%s)", server_name or "-")
+
+        def _tls_msg(_conn, direction, _version, content_type, _msg_type, data) -> None:
+            if direction == "read" and int(content_type) == 21 and len(data) >= 2:
+                level, desc = data[0], data[1]
+                if level == 2 or desc in (42, 48):  # fatal / bad_certificate / unknown_ca
+                    log.warning(
+                        "API-TLS: Alert vom Client (level=%d desc=%d) – "
+                        "Zertifikat wird nicht vertraut",
+                        level,
+                        desc,
+                    )
+
+        ctx.sni_callback = _tls_hello
+        try:
+            ctx._msg_callback = _tls_msg  # type: ignore[attr-defined]
+        except Exception:  # pragma: no cover
+            pass
+
         runner = web.AppRunner(self.app)
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", self.port, ssl_context=ctx)

@@ -8,7 +8,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives.asymmetric import ec
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "dreame_local" / "app"))
-from certutil import ensure_api_cert, resolve_material
+from certutil import ensure_api_cert, export_ca, resolve_material
 
 
 class ResolveMaterialTests(unittest.TestCase):
@@ -52,6 +52,15 @@ class EnsureApiCertTests(unittest.TestCase):
         self.assertIn("eu.iot.dreame.tech", san.get_values_for_type(x509.DNSName))
         self.assertIn("*.iot.dreame.tech", san.get_values_for_type(x509.DNSName))
         self.assertEqual(leaf.issuer, ca_cert.subject)
+        self.assertTrue(
+            ca_cert.extensions.get_extension_for_class(x509.SubjectKeyIdentifier).value
+        )
+        self.assertTrue(
+            leaf.extensions.get_extension_for_class(x509.AuthorityKeyIdentifier).value
+        )
+        self.assertTrue(
+            leaf.extensions.get_extension_for_class(x509.SubjectKeyIdentifier).value
+        )
         ca_cert.public_key().verify(
             leaf.signature, leaf.tbs_certificate_bytes, ec.ECDSA(leaf.signature_hash_algorithm)
         )
@@ -70,6 +79,22 @@ class EnsureApiCertTests(unittest.TestCase):
         chain2, _, _ = ensure_api_cert(self.data_dir, "eu")
         self.assertEqual(chain1, chain2)
         self.assertEqual(serial1, self._load(self.data_dir / "certs" / "api.pem").serial_number)
+
+    def test_export_ca_to_existing_directories_only(self):
+        _, _, ca = ensure_api_cert(self.data_dir, "eu")
+        share = self.data_dir / "share"
+        share.mkdir()
+        missing = self.data_dir / "missing"
+        written = export_ca(self.data_dir, share, missing)
+
+        self.assertEqual(written, [str(share / "dreame-local-ca.pem")])
+        self.assertEqual((share / "dreame-local-ca.pem").read_bytes(), Path(ca).read_bytes())
+        self.assertFalse(missing.exists())
+
+    def test_export_ca_without_generated_ca(self):
+        share = self.data_dir / "share"
+        share.mkdir()
+        self.assertEqual(export_ca(self.data_dir, share), [])
 
 
 if __name__ == "__main__":
