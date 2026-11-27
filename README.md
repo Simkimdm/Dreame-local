@@ -79,24 +79,42 @@ mit `Login failed: certificate verify failed ... CN=client` fehl. Der echte
 Cloud-API-Server nutzt dagegen ein öffentliches `CN=*.iot.dreame.tech`-
 Zertifikat (`docs/FINDINGS.md`). Lets Encrypt kann die Domain nicht ausstellen.
 
-Lösung: Beim **ersten Start** erzeugt das Add-on automatisch eine eigene lokale
-CA + ein Leaf mit `SAN=DNS:<region>.iot.dreame.tech` unter `/data/certs/` und
-liefert es **nur auf Port 13267** aus (Broker 19973 und Upload 8443/19980
-behalten die Dreame-Kette). Einmalig manuell bleibt nur:
+Beim **ersten Start** erzeugt das Add-on automatisch eine lokale CA + ein
+Leaf mit `SAN=DNS:<region>.iot.dreame.tech` unter `/data/certs/` und liefert
+es **nur auf Port 13267** aus (Broker 19973 und Upload 8443/19980 behalten
+die Dreame-Kette).
 
-1. CA in den Trust-Store von HA Core installieren. Download der CA direkt aus
-   der Add-on-Web-UI: `https://<HA-IP>:8099/api/ca.pem` (oder `/data/certs/ca.pem`
-   per Samba/Studio Code Server holen), dann im Terminal-Add-on (Protection AUS):
-   `cp dreame-local-ca.pem /usr/local/share/ca-certificates/dreame-local.crt && update-ca-certificates`
-   (HA Container stattdessen Umgebungsvariable `SSL_CERT_FILE=/config/dreame-local-ca.pem`
-   setzen und die CA nach `/config` kopieren. Nach einem Core-Update erneut
-   installieren.)
-2. Add-on neu starten, dann die Integration neu einrichten. Im Add-on-Log muss
-   `Login von ...` erscheinen.
+> **Wichtig:** Die Integration (Tasshack ≥ 2.0.3) verwendet für die API einen
+> eigenen TLS-Stack und prüft **nur gegen `certifi`**. Der System-Trust-Store
+> von HA Core (`/usr/local/share/ca-certificates`, `update-ca-certificates`)
+> und `SSL_CERT_FILE` werden dabei ignoriert. Die CA muss deshalb in die
+> `certifi/cacert.pem` des **HA-Core-Containers** — sonst bleibt der Login
+> trotz installierter CA bei `certificate verify failed`.
+
+Das Add-on exportiert die CA nach `/share/dreame-local-ca.pem` und liefert
+sie zusätzlich unverschlüsselt unter `http://<HA-IP>:19980/ca.pem` aus.
+Einmalig auf dem HA-OS-Host bzw. im Terminal/SSH-Add-on (Protection **AUS**):
+
+```bash
+curl -fsSL http://<HA-IP>:19980/install-ca.sh -o /tmp/install-ca.sh
+bash /tmp/install-ca.sh
+ha core restart
+```
+
+Das Skript kopiert die CA in den `certifi`-Store des `homeassistant`-
+Containers, legt ein Backup an und prüft den TLS-Handshake gegen
+`eu.iot.dreame.tech:13267`. Danach die Integration neu einrichten. Im
+Add-on-Log muss `Login von ...` erscheinen; bei einem Zertifikatsfehler
+steht dort jetzt zusätzlich `API-TLS: Alert vom Client ...`.
+
+Nach jedem **HA-Core-Update** den `certifi`-Store erneut patchen (Skript
+erneut ausführen, `ha core restart`), da das Container-Image ersetzt wird.
+Das Skript liegt auch im Repo unter `tools/install_ha_ca.sh`.
 
 Optional lässt sich das Zertifikat über die Optionen `api_cert`/`api_key`
 überschreiben (Pfad im Add-on oder inline-PEM); `tools/gen_local_api_cert.sh`
-erzeugt manuell eine CA für eigene SANs.
+erzeugt manuell eine CA für eigene SANs. Auch dann muss die zugehörige CA
+in `certifi` liegen.
 
 ---
 
@@ -266,7 +284,7 @@ werden muss.
 | Roboter verbindet nicht | DNS-Rewrite prüfen (`dig`), Port 19973 in der Firewall, `lan_ip` korrekt |
 | „Roboter verbunden" von falscher IP | Ein Testclient nutzt `device_<did>`; `device_ip` auf die echte Roboter-IP setzen und den Testclient stoppen. Der Broker wirft die alte Session bei gleicher Client-ID raus |
 | `TLS handshake failed` im Log | falsches Zertifikat in `app/certs/` (muss die Dreame-Kette sein) |
-| `Login failed: certificate verify failed` ... `CN=client` in HA | CA des Add-ons nicht im HA-Trust-Store installiert — CA laden (`https://<HA-IP>:8099/api/ca.pem`) und in HA Core installieren (siehe „API-TLS-Zertifikat für Modus B“) |
+| `Login failed: certificate verify failed` ... `CN=client` in HA | CA fehlt in `certifi` des HA-Core-Containers (nicht im System-Trust-Store!) — `install-ca.sh` vom Add-on (Port 19980) ausführen, dann `ha core restart` (siehe „API-TLS-Zertifikat für Modus B“) |
 | Keine Entitäten in HA | Mosquitto/MQTT-Integration prüfen, `discovery_prefix` = `homeassistant` |
 | Roboter „offline" in der Dreame-App | **normal** im lokalen Betrieb |
 | Karte fehlt | Uploads landen in `/data/uploads`; Diagnose: `/api/diagnostics` → `uploads`, `presigned_urls`, `upload`. Der Roboter holt neue Upload-URLs nur etwa stündlich bzw. nach Neustart/Kartenänderung – nach einem Add-on-Update einmal Roboter neu starten oder kurz reinigen lassen |
@@ -505,13 +523,26 @@ Reload the integration after an add-on update.
 > (`CN=client`) fails this check with
 > `Login failed: certificate verify failed ... CN=client`. On first start the
 > add-on auto-generates a local CA + leaf with `SAN=DNS:eu.iot.dreame.tech`
-> under `/data/certs/` and serves it on port 13267 only. Remaining manual step:
-> download the CA from the add-on web UI (`https://<HA-IP>:8099/api/ca.pem`)
-> and install it into the HA Core trust store (Terminal add-on, protection off:
-> `cp dreame-local-ca.pem /usr/local/share/ca-certificates/ && update-ca-certificates`;
-> HA Container: set `SSL_CERT_FILE=/config/dreame-local-ca.pem`). Override with
-> `api_cert`/`api_key` if needed; `tools/gen_local_api_cert.sh` generates a
-> custom CA manually.
+> under `/data/certs/` and serves it on port 13267 only.
+>
+> **The integration (Tasshack ≥ 2.0.3) uses its own TLS stack and trusts only
+> `certifi`.** The HA Core system trust store (`update-ca-certificates`) and
+> `SSL_CERT_FILE` are ignored, so installing the CA there does not fix the
+> login. The CA must be appended to the `certifi/cacert.pem` of the
+> `homeassistant` container. The add-on exports it to
+> `/share/dreame-local-ca.pem` and also serves it at
+> `http://<HA-IP>:19980/ca.pem`. On the HA OS host (Terminal/SSH add-on,
+> protection **off**):
+>
+> ```bash
+> curl -fsSL http://<HA-IP>:19980/install-ca.sh -o /tmp/install-ca.sh
+> bash /tmp/install-ca.sh
+> ha core restart
+> ```
+>
+> Run it again after every HA Core update. Override `api_cert`/`api_key` if
+> needed; `tools/gen_local_api_cert.sh` generates a custom CA manually, but
+> that CA must also be added to `certifi`.
 
 ### 7. Map, live position and trail
 
@@ -584,7 +615,7 @@ POST http://<HA-IP>:8099/api/command   {"action":"start"}
 | `mqtt_reject` in the log | `device_ip` does not match the robot; correct it or clear it |
 | Robot connects from the wrong IP | A test client is using `device_<did>`; stop it and/or set `device_ip` |
 | `TLS handshake failed` | Wrong certificate in `app/certs/`; use the Dreame chain from the app |
-| `Login failed: certificate verify failed` ... `CN=client` in HA logs | Add-on CA not trusted by HA Core: download `https://<HA-IP>:8099/api/ca.pem` and install it in the HA Core trust store |
+| `Login failed: certificate verify failed` ... `CN=client` in HA logs | CA missing from `certifi` in the HA Core container (not the system trust store): run `install-ca.sh` from the add-on (port 19980), then `ha core restart` |
 | No integration entities | Check HACS integration, DNS for `eu.iot.dreame.tech`, and reload the integration |
 | Map empty / `GET /files/...` 404 | No upload yet or stale URL; check `8443`, `upload_host`, `uploads` and power-cycle the robot |
 | Map has no trail | Update to 0.3.18+, trigger a cleaning; the trail is persisted per run |

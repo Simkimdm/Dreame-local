@@ -71,9 +71,18 @@ aus der Integration.
 > **API-TLS-Zertifikat nötig:** Die Integration prüft TLS für
 > `eu.iot.dreame.tech:13267` (CA + SAN). Beim ersten Start erzeugt das Add-on
 > automatisch eine lokale CA + Leaf mit SAN (`/data/certs/`, nur Port 13267).
-> Einmalig manuell: CA aus der Web-UI laden (`https://<HA-IP>:8099/api/ca.pem`)
-> und in den HA-Core-Trust-Store installieren (Terminal-Add-on, Protection AUS:
-> `cp dreame-local-ca.pem /usr/local/share/ca-certificates/ && update-ca-certificates`).
+> Tasshack ≥ 2.0.3 prüft **nur gegen `certifi`**, nicht gegen den
+> System-Trust-Store. Einmalig auf dem HA-Host (Terminal/SSH-Add-on,
+> Protection AUS):
+>
+> ```bash
+> curl -fsSL http://<HA-IP>:19980/install-ca.sh -o /tmp/install-ca.sh
+> bash /tmp/install-ca.sh
+> ha core restart
+> ```
+>
+> Die CA liegt nach dem Add-on-Start unter `/share/dreame-local-ca.pem` bzw.
+> `http://<HA-IP>:19980/ca.pem`. Nach jedem Core-Update erneut ausführen.
 > Details siehe README, Abschnitt „API-TLS-Zertifikat für Modus B“.
 
 1. HACS → Integrationen → **Dreame Vacuum** installieren, HA neu starten.
@@ -162,7 +171,7 @@ Firmware-Updates gebraucht.
 | Problem | Prüfen |
 |---|---|
 | Integration meldet Login-Fehler | DNS `eu.iot.dreame.tech` → HA-IP? Port 13267 offen? Add-on-Log |
-| Login-Fehler `certificate verify failed` ... `CN=client` | CA des Add-ons fehlt im HA-Trust-Store: `https://<HA-IP>:8099/api/ca.pem` laden und in HA Core installieren |
+| Login-Fehler `certificate verify failed` ... `CN=client` | CA fehlt in `certifi` des HA-Core-Containers (nicht System-Trust-Store): `install-ca.sh` vom Add-on (Port 19980), dann `ha core restart` |
 | Gerät wird nicht gefunden | `device_did` leer? Roboter verbunden (`Roboter verbunden` im Log)? |
 | Gerät offline | DNS `*.mt…` → HA-IP? Port 19973? |
 | Karte leer | Einmal reinigen lassen; `MAP_LIST` im Log? Datei in `/data/uploads`? |

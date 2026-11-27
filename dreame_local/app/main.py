@@ -19,7 +19,7 @@ import aiohttp
 from aiohttp import web
 
 from api import DreameApi
-from certutil import ensure_api_cert, resolve_material
+from certutil import ensure_api_cert, export_ca, resolve_material
 import events
 from broker import MqttBroker
 from device import Device
@@ -28,7 +28,7 @@ from web import Web
 
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("OPTIONS_FILE", "/data/options.json"))
-VERSION = "0.9.3"
+VERSION = "0.9.4"
 
 
 def load_options() -> dict:
@@ -127,6 +127,33 @@ async def upload_server(
         ulog.info("Upload gespeichert: %s (%d Bytes)", target, size)
         events.add("upload", name=name, size=size)
         return web.Response(text="ok")
+
+    # Die Web-UI (8099) ist bei HA OS nur ueber Ingress erreichbar. Der
+    # Upload-Port 19980 ist gemappt und unverschluesselt; dort gibt es die
+    # CA fuer die einmalige Installation in certifi.
+    async def ca_pem(_request: web.Request) -> web.Response:
+        target = data_dir / "certs" / "ca.pem"
+        if not target.is_file():
+            raise web.HTTPNotFound(text="CA noch nicht erzeugt")
+        return web.Response(
+            body=target.read_bytes(),
+            content_type="application/x-pem-file",
+            headers={"Content-Disposition": "attachment; filename=dreame-local-ca.pem"},
+        )
+
+    app.add_routes([web.get("/ca.pem", ca_pem), web.get("/dreame-local-ca.pem", ca_pem)])
+
+    async def install_ca(_request: web.Request) -> web.Response:
+        target = HERE / "install_ca.sh"
+        if not target.is_file():
+            raise web.HTTPNotFound(text="Installationsskript fehlt")
+        return web.Response(
+            body=target.read_bytes(),
+            content_type="text/x-shellscript",
+            headers={"Content-Disposition": 'attachment; filename="install_ha_ca.sh"'},
+        )
+
+    app.add_routes([web.get("/install-ca.sh", install_ca), web.get("/install_ha_ca.sh", install_ca)])
 
     # Alle Methoden, damit GET/HEAD/OPTIONS-Probes nicht mit 405 abbrechen.
     routes = [
@@ -230,7 +257,13 @@ async def amain() -> int:
     else:
         api_cert, api_key, api_ca = ensure_api_cert(data_dir, region)
         log.info("API-Zertifikat automatisch erzeugt: %s (CA: %s)", api_cert, api_ca)
-        log.info("CA in den HA-Core-Trust-Store installieren (Download: Web-UI /api/ca.pem)")
+        for path in export_ca(data_dir, Path("/share"), Path("/config")):
+            log.info("CA fuer die Integration liegt unter %s", path)
+        log.info(
+            "Tasshack-Integration >= 2.0.3 prueft gegen certifi, nicht gegen den "
+            "System-Trust-Store. Einmalig http://<HA-IP>:19980/install-ca.sh auf dem "
+            "HA-Host ausfuehren, danach HA Core neu starten."
+        )
     broker_port = int(opts.get("broker_port") or 19973)
     web_port = int(opts.get("web_port") or 8099)
     upload_port = int(opts.get("upload_port") or 8443)

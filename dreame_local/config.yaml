@@ -1,5 +1,5 @@
 name: Dreame Local Cloud
-version: "0.9.3"
+version: "0.9.4"
 slug: dreame_local_cloud
 description: Ersetzt die Dreame-Cloud lokal (MQTT/TLS) und bindet den Roboter per MQTT-Discovery in Home Assistant ein.
 url: https://github.com/Simkimdm/Dreame-local
@@ -13,6 +13,8 @@ panel_icon: mdi:robot-vacuum
 panel_title: Dreame Local
 ingress: true
 ingress_port: 8099
+map:
+  - share:rw
 ports:
   19973/tcp: 19973
   13267/tcp: 13267

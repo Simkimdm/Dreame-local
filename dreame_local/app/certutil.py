@@ -36,6 +36,46 @@ def _pem_key(key) -> bytes:
     )
 
 
+def export_ca(data_dir: Path, *destinations: Path) -> list[str]:
+    """Kopiert ca.pem als dreame-local-ca.pem in vorhandene Verzeichnisse.
+
+    Die Tasshack-Integration (>= 2.0.3) prueft mit ihrem eigenen TLS-Stack
+    gegen certifi, nicht gegen den System-Trust-Store. Die CA muss deshalb
+    in die certifi-Datei des HA-Core-Containers. Damit sie dort erreichbar
+    ist, exportiert das Add-on sie nach /share (und /config, falls gemappt).
+    """
+    ca = data_dir / "certs" / "ca.pem"
+    if not ca.is_file():
+        return []
+    written = []
+    for dest in destinations:
+        if not dest.is_dir():
+            continue
+        target = dest / "dreame-local-ca.pem"
+        try:
+            target.write_bytes(ca.read_bytes())
+        except OSError:
+            continue
+        written.append(str(target))
+    return written
+
+
+def _has_aki(cert_path: Path) -> bool:
+    """True, wenn das Leaf ein AuthorityKeyIdentifier hat.
+
+    Aeltere Add-on-Versionen erzeugten CA/Leaf ohne SKI/AKI. OpenSSL baut
+    die Kette dann zwar per CLI, der TLS-Client (und die Integration) aber
+    nicht: ``Missing Authority Key Identifier``. Solche Zertifikate werden
+    beim Start neu erzeugt.
+    """
+    try:
+        cert = x509.load_pem_x509_certificate(cert_path.read_bytes())
+        cert.extensions.get_extension_for_class(x509.AuthorityKeyIdentifier)
+        return True
+    except Exception:
+        return False
+
+
 def ensure_api_cert(data_dir: Path, region: str = "eu") -> tuple[str, str, str]:
     """CA + Leaf unter data_dir/certs erzeugen (falls noch nicht vorhanden).
 
@@ -46,8 +86,13 @@ def ensure_api_cert(data_dir: Path, region: str = "eu") -> tuple[str, str, str]:
     chain = certs / "api_chain.pem"
     leaf_key_p = certs / "api.key"
     ca_pem_p = certs / "ca.pem"
-    if chain.is_file() and leaf_key_p.is_file() and ca_pem_p.is_file():
+    if chain.is_file() and leaf_key_p.is_file() and ca_pem_p.is_file() and _has_aki(certs / "api.pem"):
         return str(chain), str(leaf_key_p), str(ca_pem_p)
+    for old in (chain, leaf_key_p, ca_pem_p, certs / "ca.key", certs / "api.pem"):
+        try:
+            old.unlink()
+        except OSError:
+            pass
 
     region = (region or "eu").strip().lower() or "eu"
     host = f"{region}.iot.dreame.tech"
@@ -58,6 +103,7 @@ def ensure_api_cert(data_dir: Path, region: str = "eu") -> tuple[str, str, str]:
 
     now = datetime.datetime.now(datetime.timezone.utc)
     ca_key = ec.generate_private_key(ec.SECP256R1())
+    ca_ski = x509.SubjectKeyIdentifier.from_public_key(ca_key.public_key())
     ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Dreame Local CA")])
     ca_cert = (
         x509.CertificateBuilder()
@@ -68,6 +114,7 @@ def ensure_api_cert(data_dir: Path, region: str = "eu") -> tuple[str, str, str]:
         .not_valid_before(now - datetime.timedelta(days=1))
         .not_valid_after(now + datetime.timedelta(days=3650))
         .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+        .add_extension(ca_ski, critical=False)
         .add_extension(
             x509.KeyUsage(
                 digital_signature=True,
@@ -95,6 +142,8 @@ def ensure_api_cert(data_dir: Path, region: str = "eu") -> tuple[str, str, str]:
         .not_valid_before(now - datetime.timedelta(days=1))
         .not_valid_after(now + datetime.timedelta(days=3650))
         .add_extension(x509.SubjectAlternativeName([x509.DNSName(s) for s in sans]), critical=False)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(leaf_key.public_key()), critical=False)
+        .add_extension(x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ca_ski), critical=False)
         .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
         .add_extension(
             x509.KeyUsage(
