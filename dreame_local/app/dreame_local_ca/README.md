@@ -6,12 +6,19 @@ HA-Core-Update nicht erneut ausgeführt werden.
 
 ## Einmalige Installation
 
-1. Ordner `custom_components/dreame_local_ca` nach
-   `/config/custom_components/dreame_local_ca` kopieren (Samba, Studio Code
-   Server oder Terminal-Add-on).
-2. HA Core neu starten.
-3. **Einstellungen → Geräte & Dienste → Integration hinzufügen →
-   „Dreame Local CA“** auswählen und bestätigen.
+Im Terminal/SSH-Add-on (Protection Mode kann anbleiben):
+
+```bash
+curl -fsSL http://<HA-IP>:19980/install-bridge.sh -o /tmp/install-bridge.sh
+bash /tmp/install-bridge.sh
+ha core restart
+```
+
+Danach **Einstellungen → Geräte & Dienste → Integration hinzufügen →
+„Dreame Local CA“** auswählen und bestätigen.
+
+Manuell: Ordner `dreame_local/app/dreame_local_ca` aus dem Repo nach
+`/config/custom_components/dreame_local_ca` kopieren.
 
 Die Bridge:
 

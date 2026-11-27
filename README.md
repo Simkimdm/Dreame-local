@@ -97,11 +97,19 @@ Damit gibt es zwei Wege:
 
 #### Dauerhaft (empfohlen): Custom Component `dreame_local_ca`
 
-Einmalig den Ordner `custom_components/dreame_local_ca` aus dem Repo nach
-`/config/custom_components/dreame_local_ca` kopieren (Samba, Studio Code
-Server oder Terminal-Add-on), HA Core neu starten und unter
+Einmalig im Terminal/SSH-Add-on (Protection Mode kann **an**bleiben):
+
+```bash
+curl -fsSL http://<HA-IP>:19980/install-bridge.sh -o /tmp/install-bridge.sh
+bash /tmp/install-bridge.sh
+ha core restart
+```
+
+Das Skript lädt die Custom Component aus dem Add-on und legt sie nach
+`/config/custom_components/dreame_local_ca`. Danach unter
 **Einstellungen → Geräte & Dienste → Integration hinzufügen → „Dreame Local
-CA“** einrichten.
+CA“** einrichten. Manuell geht es alternativ mit dem Ordner
+`dreame_local/app/dreame_local_ca` aus dem Repo.
 
 Die Bridge läuft im HA-Core-Prozess und:
 
@@ -554,11 +562,20 @@ Reload the integration after an add-on update.
 > `/share/dreame-local-ca.pem` and also serves it at
 > `http://<HA-IP>:19980/ca.pem`.
 >
-> **Persistent (recommended):** copy `custom_components/dreame_local_ca` from
-> this repository to `/config/custom_components/dreame_local_ca`, restart HA
-> Core, then add the **Dreame Local CA** integration once. It re-appends the
-> CA to `certifi` on every HA start and reloads `dreame_vacuum`, so no script
-> is needed after HA Core updates.
+> **Persistent (recommended):** run once in the Terminal/SSH add-on
+> (protection mode may stay **on**):
+>
+> ```bash
+> curl -fsSL http://<HA-IP>:19980/install-bridge.sh -o /tmp/install-bridge.sh
+> bash /tmp/install-bridge.sh
+> ha core restart
+> ```
+>
+> The script installs `dreame_local_ca` to
+> `/config/custom_components/dreame_local_ca`. Then add the **Dreame Local CA**
+> integration once. It re-appends the CA to `certifi` on every HA start and
+> reloads `dreame_vacuum`, so no script is needed after HA Core updates.
+> Manual alternative: copy `dreame_local/app/dreame_local_ca` from the repo.
 >
 > **One-shot fallback:** on the HA OS host (Terminal/SSH add-on, protection
 > **off**):

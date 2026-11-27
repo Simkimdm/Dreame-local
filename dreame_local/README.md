@@ -36,9 +36,16 @@ Optional gibt es einen schlanken MQTT-Discovery-Modus ohne HACS.
    The integration trusts only `certifi`, not the system trust store. The CA
    is exported to `/share/dreame-local-ca.pem` and served at
    `http://<HA-IP>:19980/ca.pem`.
-   **Persistent alternative:** copy `custom_components/dreame_local_ca` to
-   `/config/custom_components/`, restart Core and add the **Dreame Local CA**
-   integration once; no script is needed after Core updates.
+   **Persistent alternative:** run once in the Terminal/SSH add-on
+   (protection may stay on):
+   ```bash
+   curl -fsSL http://<HA-IP>:19980/install-bridge.sh -o /tmp/install-bridge.sh
+   bash /tmp/install-bridge.sh
+   ha core restart
+   ```
+   Then add the **Dreame Local CA** integration once; no script is needed
+   after Core updates. Manual alternative: copy
+   `dreame_local/app/dreame_local_ca` to `/config/custom_components/`.
    The one-shot script must be repeated after every Core update.
 6. Power-cycle the robot and wait 30–90 seconds. It should connect to the
    local add-on; the log shows `CONNECT device_<did>` and `SUBSCRIBE`.
@@ -79,10 +86,15 @@ Never expose them to the internet.
    Die Integration prüft nur gegen `certifi`, nicht gegen den
    System-Trust-Store. Die CA liegt unter `/share/dreame-local-ca.pem` bzw.
    `http://<HA-IP>:19980/ca.pem`.
-   **Dauerhaft:** `custom_components/dreame_local_ca` nach
-   `/config/custom_components/` kopieren, Core neu starten und die
-   Integration **Dreame Local CA** einmal hinzufügen. Dann ist nach
-   Core-Updates kein Skript nötig.
+   **Dauerhaft:** einmalig im Terminal/SSH-Add-on (Protection kann anbleiben):
+   ```bash
+   curl -fsSL http://<HA-IP>:19980/install-bridge.sh -o /tmp/install-bridge.sh
+   bash /tmp/install-bridge.sh
+   ha core restart
+   ```
+   Danach die Integration **Dreame Local CA** einmal hinzufügen. Dann ist nach
+   Core-Updates kein Skript nötig. Manuell: Ordner
+   `dreame_local/app/dreame_local_ca` nach `/config/custom_components/`.
    Der Einmal-Weg muss nach jedem Core-Update wiederholt werden.
 6. Roboter stromlos machen und wieder einschalten. Nach ~1 Minute ist er
    in Home Assistant verfügbar.
