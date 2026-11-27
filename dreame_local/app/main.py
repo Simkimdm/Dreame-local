@@ -30,7 +30,7 @@ from web import Web
 
 HERE = Path(__file__).resolve().parent
 OPTIONS = Path(os.environ.get("OPTIONS_FILE", "/data/options.json"))
-VERSION = "0.9.5"
+VERSION = "0.9.6"
 
 
 def load_options() -> dict:
@@ -143,7 +143,7 @@ async def upload_server(
             headers={"Content-Disposition": "attachment; filename=dreame-local-ca.pem"},
         )
 
-    app.add_routes([web.get("/ca.pem", ca_pem), web.get("/dreame-local-ca.pem", ca_pem)])
+    app.add_routes([web.get("/ca.pem", ca_pem)])
 
     def _bridge_tar() -> bytes:
         """Custom Component als tar.gz (ohne __pycache__) verpacken."""
@@ -171,7 +171,7 @@ async def upload_server(
             if lan_ip and http_port
             else f"{request.scheme}://{request.host}"
         )
-        template = (HERE / "install_ca_bridge.sh").read_text()
+        template = (HERE / "install_bridge.sh").read_text()
         return web.Response(
             text=template.replace("__BASE_URL__", base),
             content_type="text/x-shellscript",
@@ -182,7 +182,6 @@ async def upload_server(
         [
             web.get("/dreame_local_ca.tar.gz", bridge_tar),
             web.get("/install-bridge.sh", install_bridge),
-            web.get("/install_ca_bridge.sh", install_bridge),
         ]
     )
 
@@ -193,10 +192,10 @@ async def upload_server(
         return web.Response(
             body=target.read_bytes(),
             content_type="text/x-shellscript",
-            headers={"Content-Disposition": 'attachment; filename="install_ha_ca.sh"'},
+            headers={"Content-Disposition": 'attachment; filename="install-ca.sh"'},
         )
 
-    app.add_routes([web.get("/install-ca.sh", install_ca), web.get("/install_ha_ca.sh", install_ca)])
+    app.add_routes([web.get("/install-ca.sh", install_ca)])
 
     # Alle Methoden, damit GET/HEAD/OPTIONS-Probes nicht mit 405 abbrechen.
     routes = [
@@ -300,12 +299,13 @@ async def amain() -> int:
     else:
         api_cert, api_key, api_ca = ensure_api_cert(data_dir, region)
         log.info("API-Zertifikat automatisch erzeugt: %s (CA: %s)", api_cert, api_ca)
-        for path in export_ca(data_dir, Path("/share"), Path("/config")):
+        for path in export_ca(data_dir, Path("/share")):
             log.info("CA fuer die Integration liegt unter %s", path)
         log.info(
             "Tasshack-Integration >= 2.0.3 prueft gegen certifi, nicht gegen den "
-            "System-Trust-Store. Einmalig http://<HA-IP>:19980/install-ca.sh auf dem "
-            "HA-Host ausfuehren, danach HA Core neu starten."
+            "System-Trust-Store. Einmalig http://<HA-IP>:19980/install-bridge.sh "
+            "ausfuehren und die Integration 'Dreame Local CA' hinzufuegen; "
+            "Fallback: install-ca.sh."
         )
     broker_port = int(opts.get("broker_port") or 19973)
     web_port = int(opts.get("web_port") or 8099)

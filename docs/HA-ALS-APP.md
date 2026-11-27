@@ -188,7 +188,7 @@ Firmware-Updates gebraucht.
 | Problem | Prüfen |
 |---|---|
 | Integration meldet Login-Fehler | DNS `eu.iot.dreame.tech` → HA-IP? Port 13267 offen? Add-on-Log |
-| Login-Fehler `certificate verify failed` ... `CN=client` | CA fehlt in `certifi` des HA-Core-Containers (nicht System-Trust-Store): `install-ca.sh` vom Add-on (Port 19980), dann `ha core restart` |
+| Login-Fehler `certificate verify failed` ... `CN=client` | Zuerst prüfen, ob **Dreame Local CA** eingerichtet ist; sonst `install-bridge.sh` + `ha core restart`. Fallback: `install-ca.sh` (nicht System-Trust-Store) |
 | Gerät wird nicht gefunden | `device_did` leer? Roboter verbunden (`Roboter verbunden` im Log)? |
 | Gerät offline | DNS `*.mt…` → HA-IP? Port 19973? |
 | Karte leer | Einmal reinigen lassen; `MAP_LIST` im Log? Datei in `/data/uploads`? |
